@@ -1,0 +1,78 @@
+% Base LaTeX template for CV formatting (Option 3).
+
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[left=1.5cm,right=1.5cm,top=2cm,bottom=2cm]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{hyperref}
+
+% --- SAFETY DEFINITIONS ---
+\providecommand{\VAR}[1]{#1}
+\providecommand{\BLOCK}[1]{}
+
+% --- STYLING ---
+\titleformat{\section}{\Large\bfseries\uppercase}{}{0em}{}[\titlerule]
+
+\begin{document}
+
+% HEADER
+\begin{center}
+    {\Huge \textbf{John Huber}} \\ \vspace{0.2cm}
+    New York, USA | 890-555-0401 | email@email.com \\
+    \href{}{LinkedIn} | \href{}{GitHub}
+\end{center}
+
+\vspace{0.5cm}
+
+% EDUCATION (Often first in Minimalist/Academic CVs)
+\section{Education}
+\textbf{Pratt Institute} \hfill 2022 \\
+\textit{Masters Degree in Human Computer Interaction (HCI)} \hfill 
+\vspace{2mm}
+\textbf{Pratt Institute} \hfill 2020 \\
+\textit{Bachelor's Degree in Interaction Design} \hfill Excelled in Usability Testing coursework; Mastered web and mobile technologies (HTML5, CSS, Javascript).
+\vspace{2mm}
+
+% SKILLS
+\section{Technical Skills}
+\begin{itemize}[label={},leftmargin=0pt]
+    \item \textbf{Skills:} 
+    HTML5, CSS, JavaScript $\cdot$     Adobe Suite (Photoshop, Illustrator) $\cdot$     Sketch, InVision, Balsamiq $\cdot$     Usability Testing $\cdot$     Effective Communication\end{itemize}
+
+% EXPERIENCE
+\section{Experience}
+\noindent
+\textbf{Real Vision Group} \hfill Oct 2024 — Present \\
+\textit{UX Designer}
+\begin{itemize}[nosep, after=\vspace{\baselineskip}]
+    \item Gathered and evaluated user requirements in collaboration with product managers, and presented UX design concepts to stakeholders.
+    \item Drove the development and communication of clear design guidelines, patterns, libraries, and design assets.
+    \item Re-designed existing UIs to optimize for Android and iOS devices, decreasing the mobile app abandonment rate by 35%.
+\end{itemize}
+\noindent
+\textbf{S&P Global} \hfill Feb 2022 — Sep 2024 \\
+\textit{UX Designer}
+\begin{itemize}[nosep, after=\vspace{\baselineskip}]
+    \item Created wireframes, site maps, flow diagrams, and hi-fi interactive prototypes under the direction of a senior designer.
+    \item Leveraged site analytics and conducted A/B testing to assess user impact, successfully increasing CTR by 27% in the first 30 days.
+    \item Contributed to end-user documentation for the final product utilized by more than 100,000 financial professionals.
+\end{itemize}
+\noindent
+\textbf{Status} \hfill Nov 2020 — Jan 2022 \\
+\textit{Junior UX Designer}
+\begin{itemize}[nosep, after=\vspace{\baselineskip}]
+    \item Illustrated case studies, personas, and user flow maps for Android and iOS devices alongside senior UX designers and PMs.
+    \item Conducted layout adjustments based on data gathered during usability testing, leading to a 37% increase in successful task completion.
+    \item Created hi-fi interactive prototypes and recommended alternative design solutions based on technical limitations, earning positive stakeholder feedback.
+\end{itemize}
+
+% PROJECTS
+\section{Projects}
+
+% LEADERSHIP
+\section{Leadership}
+\begin{itemize}[nosep]
+\end{itemize}
+
+\end{document}

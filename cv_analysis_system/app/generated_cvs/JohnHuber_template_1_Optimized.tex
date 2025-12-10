@@ -1,0 +1,93 @@
+% Base LaTeX template for CV formatting (Option 1).
+
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[left=1cm,right=1cm,top=1cm,bottom=1cm]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+% --- SAFETY DEFINITIONS (Makes file readable even when raw) ---
+\providecommand{\VAR}[1]{#1}
+\providecommand{\BLOCK}[1]{}
+
+% --- STYLING ---
+\definecolor{primary}{RGB}{0, 51, 102} 
+\newcommand{\name}[1]{{\huge\bfseries\color{primary} #1}}
+\titleformat{\section}{\large\bfseries\color{primary}}{}{0em}{}[\hrule]
+
+\begin{document}
+
+% HEADER
+\begin{center}
+    \name{ John Huber }\\
+    \vspace{2mm}
+    New York, USA | 890-555-0401 | email@email.com \\
+    \href{}{LinkedIn} | \href{}{GitHub}
+\end{center}
+
+\vspace{0.3cm}
+
+% TWO COLUMNS
+\noindent
+\begin{minipage}[t]{0.30\textwidth}
+    \section*{SUMMARY}
+    Proactive and detailed UX Designer with 7+ years of proven end-to-end experience delivering enjoyable web and mobile products for FinTech. Clear understanding of technologies allows seamless collaboration with developers, while strong communication skills ensure transparency with stakeholders.
+
+    \section*{SKILLS}
+    \textbf{Technical Skills:}\\
+    HTML5 ,     CSS ,     JavaScript ,     Adobe Suite ,     Sketch ,     InVision ,     Balsamiq ,     Time management ,     Effective communicator     
+    \section*{EDUCATION}
+    \textbf{ Masters Degree in Human Computer Interaction (HCI) }\\
+    Pratt Institute\\
+    \textit{ 2020 – 2022 }\\
+    
+    \vspace{2mm}
+    \textbf{ Bachelor's Degree in Interaction Design }\\
+    Pratt Institute\\
+    \textit{ 2016 – 2020 }\\
+    Excelled in Usability Testing coursework. Mastered web and mobile technologies (HTML5, CSS, Javascript)
+    \vspace{2mm}
+\end{minipage}
+\hfill
+\vline
+\hfill
+\begin{minipage}[t]{0.66\textwidth}
+    \section*{EXPERIENCE}
+    \textbf{ Real Vision Group } \hfill \textit{ Oct 2024 — Present }\\
+    \textit{ UX Designer } | New York
+    \begin{itemize}[leftmargin=*]
+        \item Gathering and evaluating user requirements in collaboration with product manager.
+        \item Presenting UX design concepts to the project stakeholders for review and feedback.
+        \item Driving the development and communication of clear design guidelines, patterns, libraries, and assets.
+        \item Working closely with the development team to implement the vision.
+        \item Re-designed existing UIs to better adapt Android and iOS devices, decreasing abandonment rate on mobile app by 35%.
+    \end{itemize}
+    \vspace{2mm}
+    \textbf{ S&P Global } \hfill \textit{ Feb 2022 — Sep 2024 }\\
+    \textit{ UX Designer } | New York
+    \begin{itemize}[leftmargin=*]
+        \item Preparing and presenting lo-fi mockups to internal teams and key stakeholders.
+        \item Creating wireframes, site maps, flow diagrams, and hi-fi interactive prototypes under direction of senior designer.
+        \item Leveraging site analytics to identify opportunities to improve the site experience; increased CTR by 27% in first 30 days.
+        \item Conducting A/B testing to assess user impact of specific UI elements.
+        \item Contributing to end-user documentation for final product used by more than 100,000 financial professionals.
+    \end{itemize}
+    \vspace{2mm}
+    \textbf{ Status } \hfill \textit{ Nov 2020 — Jan 2022 }\\
+    \textit{ Junior UX Designer } | New York
+    \begin{itemize}[leftmargin=*]
+        \item Illustrating case studies, personas, and user flow maps for Android and iOS alongside senior UX designer, PM, and content strategists.
+        \item Creating hi-fi interactive prototypes to accurately demonstrate app to clients.
+        \item Recommending alternative design solutions based on technical limitations, earning positive feedback from stakeholders.
+        \item Conducted layout adjustments based on data gathered during usability testing, showing 37% increase in successful task completion in the second round.
+    \end{itemize}
+    \vspace{2mm}
+
+    \section*{PROJECTS}
+
+    \section*{LEADERSHIP}
+\end{minipage}
+
+\end{document}

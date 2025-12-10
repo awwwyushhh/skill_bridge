@@ -1,0 +1,86 @@
+% Base LaTeX template for CV formatting (Option 2).
+
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{titlesec}
+
+% --- SAFETY DEFINITIONS ---
+\providecommand{\VAR}[1]{#1}
+\providecommand{\BLOCK}[1]{}
+
+% --- STYLING ---
+\setlength{\parindent}{0pt}
+\titleformat{\section}{\large\bfseries\uppercase}{}{0em}{}[\titlerule]
+
+\begin{document}
+
+% HEADER
+\begin{center}
+    {\LARGE \textbf{\VAR{personal_info.name}}} \\ \vspace{2mm}
+    \VAR{personal_info.location} $\cdot$ \VAR{personal_info.phone} $\cdot$ \VAR{personal_info.email} \\
+    \href{\VAR{personal_info.linkedin}}{LinkedIn} $\cdot$ \href{\VAR{personal_info.github}}{GitHub}
+\end{center}
+
+% SUMMARY
+\vspace{2mm}
+\section{Professional Summary}
+\VAR{summary}
+
+% SKILLS
+\vspace{4mm}
+\section{Technical Skills}
+\begin{itemize}[noitemsep,topsep=0pt,leftmargin=*]
+    \item \textbf{Core Skills:} 
+    \BLOCK{for skill in skills}
+    \VAR{skill}\BLOCK{if not loop.last}, \BLOCK{endif}
+    \BLOCK{endfor}
+\end{itemize}
+
+% EXPERIENCE
+\vspace{4mm}
+\section{Work Experience}
+\BLOCK{for job in experience}
+\textbf{\VAR{job.company}} \hfill \VAR{job.location} \\
+\textit{\VAR{job.role}} \hfill \VAR{job.duration}
+\begin{itemize}[noitemsep,topsep=0pt]
+    \BLOCK{for bullet in job.bullets}
+    \item \VAR{bullet}
+    \BLOCK{endfor}
+\end{itemize}
+\vspace{3mm}
+\BLOCK{endfor}
+
+% PROJECTS
+\vspace{4mm}
+\section{Key Projects}
+\BLOCK{for proj in projects}
+\textbf{\VAR{proj.name}}
+\begin{itemize}[noitemsep,topsep=0pt]
+    \item \VAR{proj.description}
+\end{itemize}
+\vspace{2mm}
+\BLOCK{endfor}
+
+% EDUCATION
+\vspace{4mm}
+\section{Education}
+\BLOCK{for edu in education}
+\textbf{\VAR{edu.degree}} \hfill \VAR{edu.year} \\
+\VAR{edu.institution} \\
+\textit{\VAR{edu.details}}
+\vspace{2mm}
+\BLOCK{endfor}
+
+% LEADERSHIP
+\vspace{4mm}
+\section{Leadership \& Achievements}
+\begin{itemize}[noitemsep,topsep=0pt,leftmargin=*]
+    \BLOCK{for lead in leadership}
+    \item \textbf{\VAR{lead.role}:} \VAR{lead.description}
+    \BLOCK{endfor}
+\end{itemize}
+
+\end{document}

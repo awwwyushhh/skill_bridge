@@ -1,0 +1,94 @@
+# Python virtual environments
+myvenv/
+venv/
+env/
+ENV/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# OS specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.env
+
+# Project specific - Generated CVs and outputs
+app/generated_cvs/*.tex
+app/generated_cvs/*.pdf
+app/generated_cvs/*.docx
+
+# Project specific - Local data and logs
+*.log
+logs/
+temp/
+tmp/
+.cache/
+
+# Distribution and build files
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+
+# Environment variables
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# User-specific files and directories
+user_uploads/
+user_data/
+*.pdf
+!**/latex_templates/**
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Node modules (if any frontend included)
+node_modules/
+npm-debug.log
+
+# Pip packages
+pip-log.txt
+pip-delete-this-directory.txt
+
+# MacOS
+.AppleDouble
+.LSOverride

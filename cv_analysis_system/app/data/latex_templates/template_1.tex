@@ -1,0 +1,86 @@
+% Base LaTeX template for CV formatting (Option 1).
+
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[left=1cm,right=1cm,top=1cm,bottom=1cm]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+% --- SAFETY DEFINITIONS (Makes file readable even when raw) ---
+\providecommand{\VAR}[1]{#1}
+\providecommand{\BLOCK}[1]{}
+
+% --- STYLING ---
+\definecolor{primary}{RGB}{0, 51, 102} 
+\newcommand{\name}[1]{{\huge\bfseries\color{primary} #1}}
+\titleformat{\section}{\large\bfseries\color{primary}}{}{0em}{}[\hrule]
+
+\begin{document}
+
+% HEADER
+\begin{center}
+    \name{ \VAR{personal_info.name} }\\
+    \vspace{2mm}
+    \VAR{personal_info.location} | \VAR{personal_info.phone} | \VAR{personal_info.email} \\
+    \href{\VAR{personal_info.linkedin}}{LinkedIn} | \href{\VAR{personal_info.github}}{GitHub}
+\end{center}
+
+\vspace{0.3cm}
+
+% TWO COLUMNS
+\noindent
+\begin{minipage}[t]{0.30\textwidth}
+    \section*{SUMMARY}
+    \VAR{summary}
+
+    \section*{SKILLS}
+    \textbf{Technical Skills:}\\
+    \BLOCK{for skill in skills}
+    \VAR{skill} \BLOCK{if not loop.last}, \BLOCK{endif}
+    \BLOCK{endfor}
+    
+    \section*{EDUCATION}
+    \BLOCK{for edu in education}
+    \textbf{ \VAR{edu.degree} }\\
+    \VAR{edu.institution}\\
+    \textit{ \VAR{edu.year} }\\
+    \VAR{edu.details}
+    \vspace{2mm}
+    \BLOCK{endfor}
+\end{minipage}
+\hfill
+\vline
+\hfill
+\begin{minipage}[t]{0.66\textwidth}
+    \section*{EXPERIENCE}
+    \BLOCK{for job in experience}
+    \textbf{ \VAR{job.company} } \hfill \textit{ \VAR{job.duration} }\\
+    \textit{ \VAR{job.role} } | \VAR{job.location}
+    \begin{itemize}[leftmargin=*]
+        \BLOCK{for bullet in job.bullets}
+        \item \VAR{bullet}
+        \BLOCK{endfor}
+    \end{itemize}
+    \vspace{2mm}
+    \BLOCK{endfor}
+
+    \section*{PROJECTS}
+    \BLOCK{for proj in projects}
+    \textbf{ \VAR{proj.name} }
+    \begin{itemize}[leftmargin=*]
+        \item \VAR{proj.description}
+    \end{itemize}
+    \BLOCK{endfor}
+
+    \section*{LEADERSHIP}
+    \BLOCK{for lead in leadership}
+    \textbf{ \VAR{lead.role} }
+    \begin{itemize}[leftmargin=*]
+        \item \VAR{lead.description}
+    \end{itemize}
+    \BLOCK{endfor}
+\end{minipage}
+
+\end{document}
