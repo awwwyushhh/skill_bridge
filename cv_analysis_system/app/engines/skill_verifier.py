@@ -1,216 +1,160 @@
-# Skill Verification: This engine acts as the "Interviewer." It takes the list of missing skills, asks the LLM to generate specific Yes/No MCQs for them, and handles the user's answers in the terminal.
+# app/engines/skill_verifier.py
 
 import os
 import json
 import time
-import glob
 import re
 import google.generativeai as genai
+# Removed: from google.generativeai import types
 from dotenv import load_dotenv
 from google.api_core.exceptions import ResourceExhausted, ServiceUnavailable, NotFound, InvalidArgument, PermissionDenied
+from pypdf import PdfReader 
+from app.llm_workflows.gap_workflow import GapAnalysisState
+from typing import List, Dict, Any
 
-# Load environment variables
+# Load environment variables (for GEMINI_API_KEY check, handled in main)
 load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+MODEL_PRIORITY_LIST = ["models/gemini-2.5-flash"]
 
-if not GEMINI_API_KEY:
-    raise ValueError("GEMINI_API_KEY missing from .env")
+# --- Helper Functions (LLM Call and PDF Extraction) ---
 
-genai.configure(api_key=GEMINI_API_KEY)
-
-class SkillVerifier:
-    def __init__(self):
-        # UPDATED PRIORITY LIST: Only using models confirmed to exist for my account
-        self.model_priority = [
-            "models/gemini-2.0-flash-lite",   # Best for simple tasks (Fast/Cheap)
-            "models/gemini-2.0-flash",        # Standard
-            "models/gemini-flash-latest",     # 1.5 Flash Alias
-            "models/gemini-pro-latest"        # 1.5 Pro Alias
-        ]
-
-    def _get_gemini_response(self, prompt: str) -> str:
-        """
-        Robust API caller. Switches models if one fails.
-        """
-        for model_name in self.model_priority:
-            try:
-                # print(f"   ...Attempting {model_name}") # Uncomment to debug
-                model = genai.GenerativeModel(model_name)
-                response = model.generate_content(prompt)
-                return response.text
-                
-            except (ResourceExhausted, ServiceUnavailable):
-                print(f"   ⚠️  Quota hit on {model_name}. Waiting 10s to recover...")
-                time.sleep(10)
-                continue
-            except (NotFound, PermissionDenied, InvalidArgument) as e:
-                print(f"   ⚠️  {model_name} error. Switching...")
-                continue
-            except Exception as e:
-                print(f"   ❌ Unexpected error on {model_name}: {e}")
-                continue
-
-        # Final Attempt
-        print("   ⏳ All models exhausted. Sleeping 60s to FULLY reset quota...")
-        time.sleep(60)
+def _get_gemini_response(prompt: str) -> str:
+    """Robust API caller."""
+    for model_name in MODEL_PRIORITY_LIST:
         try:
-            return genai.GenerativeModel("models/gemini-2.0-flash-lite").generate_content(prompt).text
+            model = genai.GenerativeModel(model_name)
+            # --- FINAL FIX: Removing 'config' ---
+            response = model.generate_content(prompt)
+            # --- END FIX ---
+            return response.text
+        except (ResourceExhausted, ServiceUnavailable):
+            print(f"   ⚠️  Quota hit on {model_name}. Waiting 10s...")
+            time.sleep(10)
+            continue
+        except (NotFound, PermissionDenied, InvalidArgument) as e:
+            print(f"   ⚠️  {model_name} error ({type(e).__name__}). Switching...")
+            continue
         except Exception as e:
-            print(f"   ❌ Final retry failed: {e}")
-            return ""
+            print(f"   ❌ Unexpected error on {model_name}: {e}")
+            continue
 
-    def extract_missing_skills_from_pdf(self, pdf_path: str) -> list:
-        # Extracts skills and cleans them up
-        if not os.path.exists(pdf_path):
-            print(f"Error: PDF not found at {pdf_path}")
-            return []
+    print("   ⏳ All models exhausted. Sleeping 60s...")
+    time.sleep(60)
+    try:
+        return genai.GenerativeModel("models/gemini-2.5-flash").generate_content(prompt).text
+    except Exception as e:
+        print(f"   ❌ Final retry failed: {e}")
+        return ""
 
-        try:
-            from pypdf import PdfReader
-            reader = PdfReader(pdf_path)
-            text = ""
-            for page in reader.pages:
-                text += page.extract_text() + "\n"
-            
-            lines = text.split('\n')
-            extracted_skills = []
-            capture_mode = False
-            
-            for line in lines:
-                clean_line = line.strip()
-                
-                # Start capturing after "Missing Skills" header
-                if "Missing Skills" in clean_line and not capture_mode:
-                    capture_mode = True
-                    continue
-                
-                # Stop if we hit typical footer/next section markers
-                if capture_mode and (clean_line.startswith("Summary") or clean_line.startswith("Matching")):
-                    break
+def extract_missing_skills_from_pdf(pdf_path: str) -> List[str]:
+    """Extracts missing skills list directly from the generated Skill Gap Report PDF."""
+    if not os.path.exists(pdf_path):
+        return []
 
-                if capture_mode:
-                    # Detect bullet points
-                    if clean_line.startswith("-") or clean_line.startswith("•"):
-                        raw_skill = clean_line.lstrip("-• ").strip()
-                        
-                        # CLEANUP: Remove parenthetical explanations
-                        # Turns "Feature Ownership (No professional history...)" -> "Feature Ownership"
-                        simple_skill = re.sub(r'\s*\(.*?\)', '', raw_skill).strip()
-                        
-                        if simple_skill and len(simple_skill) < 50: 
-                            extracted_skills.append(simple_skill)
-            
-            # LIMIT TO TOP 4 SKILLS as requested
-            return extracted_skills[:4]
-
-        except ImportError:
-            print("Error: pypdf not installed. Please run 'pip install pypdf'")
-            return []
-        except Exception as e:
-            print(f"Error parsing PDF: {e}")
-            return []
-
-    def generate_questions(self, missing_skills: list) -> list:
-        if not missing_skills:
-            print("No missing skills to generate questions for.")
-            return []
-
-        print(f"Generating short verification questions for: {missing_skills}...")
-
-        prompt = f"""
-        You are a Technical Recruiter. A candidate is missing these skills: {missing_skills}.
+    try:
+        reader = PdfReader(pdf_path)
+        text = "".join(page.extract_text() + "\n" for page in reader.pages)
         
-        Generate a very short, crisp question for each skill.
-        The question format should strictly be: "Do you have experience with [Skill Name]?"
+        lines = text.split('\n')
+        extracted_skills = []
+        capture_mode = False
         
-        Return a strict JSON list of objects matching this schema exactly:
-        [
-            {{
-                "skill": "Skill Name",
-                "question": "Do you have experience with [Skill Name]?",
-                "options": [
-                    "1. Yes",
-                    "2. No"
-                ]
-            }}
-        ]
+        for line in lines:
+            clean_line = line.strip()
+            if "Missing Skills" in clean_line and not capture_mode:
+                capture_mode = True
+                continue
+            if capture_mode and (clean_line.startswith("Summary") or clean_line.startswith("Matching")):
+                break
+            if capture_mode and (clean_line.startswith("-") or clean_line.startswith("•")):
+                raw_skill = clean_line.lstrip("-• ").strip()
+                simple_skill = re.sub(r'\s*\(.*?\)', '', raw_skill).strip()
+                if simple_skill and len(simple_skill) < 50: 
+                    extracted_skills.append(simple_skill)
         
-        Do not output markdown formatting. Return only the raw JSON list.
-        """
-        
-        raw_text = self._get_gemini_response(prompt)
-        
-        if not raw_text:
-            print("❌ AI returned empty response (Check Quota/Permissions).")
-            return []
+        return extracted_skills[:4]
 
-        try:
-            clean_json = raw_text.replace("```json", "").replace("```", "").strip()
-            return json.loads(clean_json)
-        except json.JSONDecodeError:
-            print(f"❌ Error parsing JSON. Raw output: {raw_text[:100]}...")
-            return []
+    except Exception as e:
+        print(f"Error parsing PDF for missing skills: {e}")
+        return []
 
-    def verify_skills_with_user(self, questions: list):
-        skills_to_add_to_cv = []
-        skills_for_roadmap = []
-
-        print("\n" + "="*50)
-        print("🔍 SKILL CHECK")
-        print("="*50)
-        
-        for q in questions:
-            # Simple Display
-            print(f"🔹 {q['question']}")
-            
-            while True:
-                choice = input("   👉 (1) Yes / (2) No: ").strip()
-                if choice == "1":
-                    print(f"   ✅ Added '{q['skill']}' to CV.\n")
-                    skills_to_add_to_cv.append(q['skill'])
-                    break
-                elif choice == "2":
-                    print(f"   🚀 Sent '{q['skill']}' to Roadmap.\n")
-                    skills_for_roadmap.append(q['skill'])
-                    break
-                else:
-                    print("   ⚠️ Invalid input. Enter 1 or 2.")
-
-        return skills_to_add_to_cv, skills_for_roadmap
-
-# MAIN EXECUTION BLOCK
-if __name__ == "__main__":
-    verifier = SkillVerifier()
+def generate_questions(missing_skills: List[str]) -> List[Dict[str, Any]]:
+    """Generates verification questions using the LLM."""
+    prompt = f"""
+    You are a Technical Recruiter. A candidate is missing these skills: {missing_skills}.
+    Generate a very short, crisp question for each skill.
+    The question format should strictly be: "Do you have experience with [Skill Name]?"
+    Return a strict JSON list of objects matching this schema exactly:
+    [ {{"skill": "Skill Name", "question": "...", "options": ["1. Yes", "2. No"]}} ]
     
-    # 1. Auto-find latest report
-    list_of_files = glob.glob('Skill_Report_*.pdf') 
+    CRITICAL INSTRUCTION: Return ONLY the raw JSON object. Do not include markdown (```json) or any other formatting.
+    """
     
-    pdf_path = None
-    if list_of_files:
-        pdf_path = max(list_of_files, key=os.path.getctime)
-        print(f"Found latest report: {pdf_path}")
-    else:
-        pdf_path = input("Enter path to Skill Gap Report PDF: ").strip('"')
+    # --- FINAL FIX: Calling the robust helper without configuration ---
+    raw_text = _get_gemini_response(prompt)
+    # --- END FIX ---
+    
+    if not raw_text: return []
 
-    if pdf_path and os.path.exists(pdf_path):
-        # 2. Extract (Will only return top 4 skills now)
-        extracted_missing_skills = verifier.extract_missing_skills_from_pdf(pdf_path)
-        
-        if extracted_missing_skills:
-            # 3. Generate Questions (Short & Crisp)
-            questions = verifier.generate_questions(extracted_missing_skills)
-            
-            if questions:
-                # 4. Verify
-                cv_updates, roadmap_updates = verifier.verify_skills_with_user(questions)
-                
-                print("\n" + "="*30)
-                print("FINAL OUTPUT")
-                print(f"CV Updates: {cv_updates}")
-                print(f"Roadmap Updates: {roadmap_updates}")
+    try:
+        clean_json = raw_text.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean_json)
+    except json.JSONDecodeError:
+        print(f"❌ Error parsing JSON from AI: {raw_text[:100]}...")
+        return []
+
+
+def verify_skills_with_user(questions: List[Dict[str, Any]]):
+    """Handles the terminal user interaction for skill verification."""
+    skills_to_add_to_cv = []
+    skills_for_roadmap = [] 
+
+    print("\n" + "="*50)
+    print("🔍 SKILL CHECK (Requires Terminal Input)")
+    print("="*50)
+    
+    for q in questions:
+        print(f"🔹 {q['question']}")
+        while True:
+            choice = input("   👉 (1) Yes / (2) No: ").strip()
+            if choice == "1":
+                skills_to_add_to_cv.append(q['skill'])
+                break
+            elif choice == "2":
+                skills_for_roadmap.append(q['skill'])
+                break
             else:
-                print("❌ Failed to generate questions.")
-        else:
-            print("No missing skills found in the PDF (or parsing failed).")
-    else:
-        print("PDF file not found.")
+                print("   ⚠️ Invalid input. Enter 1 or 2.")
+
+    return skills_to_add_to_cv, skills_for_roadmap
+
+# --- LangGraph Node ---
+
+def skill_verification_node(state: GapAnalysisState) -> GapAnalysisState:
+    """LangGraph node: Orchestrates skill verification with the user."""
+    pdf_path = state.get("pdf_path")
+    
+    if not pdf_path or not os.path.exists(pdf_path):
+        print("⚠️  Skill Verification skipped: PDF report not found in state.")
+        return {"new_skills_to_add": [], "skills_for_roadmap": []}
+        
+    print(f"\n🔍 Starting Skill Verification using report: {pdf_path}")
+    
+    extracted_missing_skills = extract_missing_skills_from_pdf(pdf_path)
+    
+    if not extracted_missing_skills:
+        print("   ✅ No missing skills found. Proceeding to CV generation.")
+        return {"new_skills_to_add": [], "skills_for_roadmap": []}
+
+    questions = generate_questions(extracted_missing_skills)
+    
+    if not questions:
+        print("❌ Failed to generate verification questions. Proceeding with empty list.")
+        return {"new_skills_to_add": [], "skills_for_roadmap": []}
+
+    skills_to_add_to_cv, skills_for_roadmap = verify_skills_with_user(questions)
+
+    return {
+        "new_skills_to_add": skills_to_add_to_cv, 
+        "skills_for_roadmap": skills_for_roadmap,
+    }

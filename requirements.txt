@@ -1,0 +1,16 @@
+# --- 1. CORE AI/LLM FRAMEWORK ---
+google-genai>=1.55.0         # Official SDK for Gemini 2.5 Flash calls
+langgraph>=1.0.5             # Core workflow orchestration
+python-dotenv>=1.0.1         # For robust loading of GEMINI_API_KEY from .env
+google-genai
+
+# --- 2. WEB/API FRAMEWORK ---
+fastapi>=0.124.4             # High-performance web framework
+uvicorn[standard]>=0.38.0    # ASGI server to run FastAPI (includes standard extras for performance)
+pydantic>=2.12.5             # Data validation and API schemas
+jinja2>=3.1.6                # LaTeX CV templating
+
+# --- 3. DOCUMENT PROCESSING (CVs and Reports) ---
+pypdf>=6.4.2                 # Pure Python PDF parsing (replaces PyMuPDF/PyPDF2)
+python-docx>=1.2.0           # Required for .docx parsing
+fpdf2>=2.8.5                 # Used for generating the Skill Gap Report PDF

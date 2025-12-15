@@ -1,72 +1,93 @@
-# FR-2.1: Handles CV file parsing (PDF/DOCX) and data extraction of skills, experience, etc.
+# app/engines/nlp_analyzer.py
 
-# Purpose: CV Parsing Node for LangGraph Workflow
-
+from app.llm_workflows.gap_workflow import GapAnalysisState
 import os
-from PyPDF2 import PdfReader
+import google.generativeai as genai
+# Removed: from google.generativeai import types
+import json
+from pypdf import PdfReader 
 
+MODEL_NAME = "models/gemini-2.5-flash"
 
-def parse_cv(file_path: str):
-    """
-    Extract raw text from PDF or TXT CV.
-    Returns clean plain text for LangGraph / console usage.
-    """
-    try:
-        # Check if file exists
-        if not os.path.exists(file_path):
-            return None
+CV_SCHEMA = """
+{
+  "name": "...",
+  "summary": "...",
+  "experience": [
+    {"title": "...", "company": "...", "dates": "...", "description": "..."}
+  ],
+  "skills": ["...", "..."],
+  "education": ["..."]
+}
+"""
 
-        # Detect file extension
-        file_extension = os.path.splitext(file_path)[1].lower()
+def cv_reader_node(state: GapAnalysisState) -> GapAnalysisState:
+    """Reads the CV file (PDF or TXT) and extracts raw text."""
+    cv_path = state.get("cv_file_path")
+    cv_text = ""
+    print("🧠 Reading CV text...")
 
-        # PDF parsing
-        if file_extension == ".pdf":
-            with open(file_path, "rb") as f:
-                reader = PdfReader(f)
-                text = ""
-                for page in reader.pages:
-                    page_text = page.extract_text()
-                    if page_text:
-                        text += page_text + "\n"
-                return text.strip()
+    if cv_path.lower().endswith('.txt'):
+        try:
+            with open(cv_path, 'r', encoding='utf-8') as f:
+                cv_text = f.read()
+        except Exception as e:
+            raise RuntimeError(f"Failed to read TXT file: {e}")
 
-        # TXT parsing
-        elif file_extension == ".txt":
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                return f.read().strip()
-
-        # Unsupported file type
-        else:
-            return None
-
-    except Exception:
-        # Any unexpected failure
-        return None
-
-
-def cv_reader_node(state: dict):
-    """
-    LangGraph node.
-    Input state:
-        { "cv_file_path": "<path>" }
-    Output state:
-        { "cv_text": "<extracted text>" }
-    """
-    file_path = state.get("cv_file_path")
-    extracted = parse_cv(file_path)
-    return {
-        "cv_text": extracted if extracted else ""
-    }
-
-
-if __name__ == "__main__":
-    # Sample direct test
-    SAMPLE_CV_PATH = r"F:\cv_analyzer\Ux-designer-resume-example-5.pdf"
-
-    extracted_text = parse_cv(SAMPLE_CV_PATH)
-
-    if extracted_text:
-        print("CV Content Extracted Successfully\n")
-        print(extracted_text)
+    elif cv_path.lower().endswith('.pdf'):
+        try:
+            reader = PdfReader(cv_path)
+            cv_text = ""
+            for page in reader.pages:
+                cv_text += page.extract_text() or "" 
+                
+            if not cv_text.strip():
+                raise ValueError("PDF opened but no text could be extracted. Check if the PDF is image-only or encrypted.")
+            
+        except Exception as e:
+            raise RuntimeError(f"Failed to read PDF file at {cv_path}: {e}")
+            
     else:
-        print("Failed to extract content from CV")
+        raise ValueError(f"Unsupported file type: {os.path.basename(cv_path)}. Please use .pdf or .txt.")
+    
+    return {"cv_text": cv_text}
+
+
+def extract_data_node(state: GapAnalysisState) -> GapAnalysisState:
+    """Uses LLM to structure the raw CV text into a clean JSON object."""
+    cv_text = state.get("cv_text")
+    if not cv_text or len(cv_text.strip()) < 50:
+        raise RuntimeError("Cannot process CV: Raw CV text is empty or too short. Check the file path and PDF parsing in the previous node.")
+
+    print("🧠 Structuring CV data...")
+    prompt = f"""
+    You are an expert CV parser. Analyze the following raw CV text and extract all 
+    relevant fields into a structured JSON object. The JSON MUST strictly follow this schema.
+    
+    SCHEMA: {CV_SCHEMA}
+    
+    RAW CV TEXT:
+    ---
+    {cv_text}
+    ---
+    
+    CRITICAL INSTRUCTION: Return ONLY the raw JSON object. Do not include markdown (```json) or any other formatting.
+    """
+    
+    model = genai.GenerativeModel(MODEL_NAME)
+    
+    # --- FINAL FIX: Removing 'config' and relying on prompt engineering ---
+    response = model.generate_content(prompt)
+    # --- END FIX ---
+
+    try:
+        raw_json = response.text.strip().replace("```json", "").replace("```", "").strip()
+        structured_data = json.loads(raw_json)
+        
+        user_name = structured_data.get('name', 'Unknown_Candidate')
+        return {"structured_cv_data": structured_data, "user_name": user_name}
+        
+    except Exception as e:
+        print(f"❌ JSON Parsing Error: {e}")
+        print(f"Raw LLM Output: {response.text}")
+        raise RuntimeError("LLM failed to generate valid structured CV JSON. Check the API response.")

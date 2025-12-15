@@ -1,254 +1,122 @@
-# FR-2.2 & FR-2.3: Orchestrator; executes the LangGraph flow and prepares data for the report.
+# app/engines/gap_analysis_engine.py
 
-import os
-import json
-import time
-from fpdf import FPDF
-from dotenv import load_dotenv
+from app.llm_workflows.gap_workflow import GapAnalysisState
 import google.generativeai as genai
-from langgraph.graph import StateGraph, END
-from google.api_core.exceptions import ResourceExhausted, NotFound, InvalidArgument, ServiceUnavailable, PermissionDenied
+# Removed: from google.generativeai import types
+import json
+import os
+from fpdf import FPDF # Assuming fpdf2 is installed
 
-# Load environment variables
-load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+MODEL_NAME = "models/gemini-2.5-flash"
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-if not GEMINI_API_KEY:
-    raise ValueError("GEMINI_API_KEY missing from .env")
 
-# Configure Gemini
-genai.configure(api_key=GEMINI_API_KEY)
-
-# Configuration: Priority List
-# UPDATED: Using verified aliases found in your account
-MODEL_PRIORITY_LIST = [
-    "models/gemini-2.0-flash-lite",   # Try Lite first (Efficiency)
-    "models/gemini-2.0-flash",        # Standard Flash
-    "models/gemini-flash-latest",     # CORRECTED: The alias your account has access to
-    "models/gemini-2.0-flash-exp",    # Experimental backup (often has free quota)
-    "models/gemini-pro-latest"        # Fallback Pro model
-]
-
-# Prompt templates
-JOB_REQ_PROMPT = """
-As a senior technical recruiter, generate a detailed set of requirements
-for the job title: "{job_title}".
-
-Return a structured format with three sections:
-
-1. Key Responsibilities
-2. Required Technical Skills
-3. Essential Soft Skills
-"""
-
-SKILL_GAP_PROMPT = """
-As an expert career coach, analyze the CV against job requirements.
-Return a structured JSON object with keys:
-
-1. summary  (one short paragraph)
-2. matching_skills  (list)
-3. missing_skills (list)
-
-Do not include anything outside the JSON.
-
-JOB REQUIREMENTS:
-{job_requirements}
-
-CV TEXT:
-{cv_text}
-"""
-
-# Shared state class
-class GapAnalysisState(dict):
-    job_title: str
-    cv_text: str
-    job_requirements: str
-    skill_report: dict
-    pdf_path: str
-
-# Helper: The Model Hopper
-def generate_safe(prompt):
-    last_exception = None
+def generate_job_requirements_node(state: GapAnalysisState) -> GapAnalysisState:
+    """Uses LLM to generate strict job requirements for the target role."""
+    job_title = state.get("job_title")
+    print(f"Generative Job Requirements for: {job_title}...")
     
-    for model_name in MODEL_PRIORITY_LIST:
-        try:
-            # print(f"Trying model: {model_name}...") # Uncomment for debug
-            model = genai.GenerativeModel(model_name)
-            return model.generate_content(prompt)
-            
-        except (ResourceExhausted, ServiceUnavailable) as e:
-            print(f"⚠️  Quota hit on {model_name}. Switching...")
-            last_exception = e
-            time.sleep(1) # Brief pause
-            continue
-            
-        except (PermissionDenied, NotFound, InvalidArgument, ValueError) as e:
-            print(f"⚠️  {model_name} not accessible/found. Switching...")
-            last_exception = e
-            continue
-            
-        except Exception as e:
-            print(f"❌ Critical error on {model_name}: {e}")
-            last_exception = e
-            continue
-            
-    # If all models fail, wait and force a retry on the most stable alias
-    print("⏳ All models exhausted. Sleeping 60s to reset quota...")
-    time.sleep(60)
+    prompt = f"""
+    You are a Senior Recruiter. Generate a comprehensive list of core and advanced skills 
+    and requirements for a '{job_title}' role. The requirements should be strict and 
+    include modern industry standards (e.g., specific cloud platforms, testing frameworks, advanced tools).
+    
+    Format the output as a simple, unformatted text list.
+    """
+    
+    model = genai.GenerativeModel(MODEL_NAME)
+    # --- FINAL FIX: Removing 'config' ---
+    response = model.generate_content(prompt)
+    # --- END FIX ---
+    
+    return {"job_requirements": response.text}
+
+
+def analyze_skill_gap_node(state: GapAnalysisState) -> GapAnalysisState:
+    """Compares CV skills against job requirements to identify gaps."""
+    job_requirements = state.get("job_requirements")
+    structured_data = state.get("structured_cv_data")
+    
+    print("Analyzing Skill Gap...")
+    
+    prompt = f"""
+    You are a Skill Analyst. Compare the Candidate's Profile against the Job Requirements.
+    1. List all skills the candidate is **MISSING** (gaps).
+    2. List all skills the candidate **POSSESSES** (matches).
+    3. Output the result as a strict JSON object. The 'missing_skills' list MUST be simple strings (e.g., ["TypeScript", "Docker"]).
+    
+    JOB REQUIREMENTS:
+    {job_requirements}
+    
+    CANDIDATE PROFILE (STRUCTURED DATA):
+    {json.dumps(structured_data, indent=2)}
+    
+    JSON SCHEMA:
+    {{
+        "analysis_summary": "A brief analysis of the candidate's strongest areas and biggest gaps.",
+        "possesses_skills": ["skill1", "skill2"],
+        "missing_skills": ["skill3", "skill4"]
+    }}
+    
+    CRITICAL INSTRUCTION: Return ONLY the raw JSON object. Do not include markdown (```json) or any other formatting.
+    """
+    
+    model = genai.GenerativeModel(MODEL_NAME)
+    # --- FINAL FIX: Removing 'config' and relying on prompt engineering ---
+    response = model.generate_content(prompt)
+    # --- END FIX ---
+    
     try:
-        print("🔄 Retrying with gemini-flash-latest...")
-        model = genai.GenerativeModel("models/gemini-flash-latest")
-        return model.generate_content(prompt)
-    except Exception as e:
-        raise RuntimeError(f"Final retry failed: {e}")
-
-# Node 1: Generate Job Requirements
-def generate_job_requirements_node(state: GapAnalysisState):
-    print(f"Generative Job Requirements for: {state['job_title']}...")
-    response = generate_safe(JOB_REQ_PROMPT.format(job_title=state["job_title"]))
-    state["job_requirements"] = response.text.strip()
-    return state
-
-# Node 2: Analyze Skill Gap
-def analyze_skill_gap_node(state: GapAnalysisState):
-    print("Analyzing Gap...")
-    prompt = SKILL_GAP_PROMPT.format(
-        cv_text=state["cv_text"],
-        job_requirements=state["job_requirements"]
-    )
-    
-    response = generate_safe(prompt)
-    raw = response.text.strip()
-    
-    # Clean up markdown
-    if raw.startswith("```json"):
-        raw = raw.replace("```json", "").replace("```", "").strip()
-    elif raw.startswith("```"):
-         raw = raw.replace("```", "").strip()
-
-    try:
-        skill_report = json.loads(raw)
-    except json.JSONDecodeError:
-        print("⚠️  Warning: Gemini returned malformed JSON.")
-        skill_report = {
-            "summary": "Error parsing JSON response.",
-            "matching_skills": [],
-            "missing_skills": [],
-            "raw_response": raw
-        }
+        raw_json = response.text.strip().replace("```json", "").replace("```", "").strip()
+        skill_report = json.loads(raw_json)
         
-    state["skill_report"] = skill_report
-    return state
+        missing_skills = skill_report.get('missing_skills', [])
+        
+        return {
+            "skill_report": skill_report,
+            "skills_for_roadmap": missing_skills,
+        }
+    except Exception as e:
+        print(f"❌ JSON Parsing Error in Gap Analysis: {e}")
+        raise RuntimeError("LLM failed to generate valid gap analysis JSON.")
 
-# Node 3: Generate Skill Report PDF
-def generate_report_pdf_node(state: GapAnalysisState):
+
+def generate_report_pdf_node(state: GapAnalysisState) -> GapAnalysisState:
+    """Generates a PDF report summarizing the gap analysis."""
+    skill_report = state.get("skill_report")
+    user_name = state.get("user_name")
+    
     print("Generating PDF...")
-    report = state["skill_report"]
     
-    safe_title = "".join([c for c in state["job_title"] if c.isalnum() or c in (' ', '_')]).strip()
-    filename = f"Skill_Report_{safe_title.replace(' ', '_')}.pdf"
-
-    pdf = FPDF()
-    pdf.add_page()
+    pdf_path = os.path.join(ROOT_DIR, 'Skill_Report.pdf')
     
-    # Fonts and Layout
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 12, f"Skill Gap Report: {state['job_title']}", ln=True, align="C")
-    pdf.ln(5)
+    try:
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=16, style='B')
+        pdf.cell(0, 10, txt=f"Skill Gap Report for {user_name}", ln=1, align="C")
+        
+        pdf.set_font("Arial", size=12, style='')
+        pdf.ln(5)
+        
+        # Summary
+        pdf.set_font("Arial", size=14, style='B')
+        pdf.cell(0, 10, "Analysis Summary", ln=1)
+        pdf.set_font("Arial", size=10)
+        pdf.multi_cell(0, 5, skill_report.get('analysis_summary', 'N/A'))
+        
+        # Missing Skills
+        pdf.ln(5)
+        pdf.set_font("Arial", size=14, style='B')
+        pdf.cell(0, 10, "Missing Skills (Gaps)", ln=1)
+        pdf.set_font("Arial", size=12)
+        for skill in skill_report.get('missing_skills', []):
+            pdf.cell(0, 7, f"• {skill}", ln=1)
 
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, "Summary", ln=True)
-    pdf.set_font("Arial", "", 11)
+        pdf.output(pdf_path)
+        
+    except Exception as e:
+        print(f"⚠️ PDF Generation Failed: {e}. Ensure fpdf2 is installed.")
     
-    # Handle encoding safely
-    summary_text = report.get("summary", "N/A").encode('latin-1', 'replace').decode('latin-1')
-    pdf.multi_cell(0, 6, summary_text)
-    pdf.ln(5)
-
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, "Matching Skills", ln=True)
-    pdf.set_font("Arial", "", 11)
-    for skill in report.get("matching_skills", []):
-        clean_skill = str(skill).encode('latin-1', 'replace').decode('latin-1')
-        pdf.multi_cell(0, 6, f"- {clean_skill}")
-    pdf.ln(4)
-
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, "Missing Skills", ln=True)
-    pdf.set_font("Arial", "", 11)
-    for skill in report.get("missing_skills", []):
-        clean_skill = str(skill).encode('latin-1', 'replace').decode('latin-1')
-        pdf.multi_cell(0, 6, f"- {clean_skill}")
-
-    pdf.output(filename)
-    state["pdf_path"] = filename
-    return state
-
-# Build Workflow
-def build_gap_analysis_graph():
-    graph = StateGraph(GapAnalysisState)
-    graph.add_node("generate_job_requirements", generate_job_requirements_node)
-    graph.add_node("analyze_skill_gap", analyze_skill_gap_node)
-    graph.add_node("generate_pdf", generate_report_pdf_node)
-    
-    graph.set_entry_point("generate_job_requirements")
-    graph.add_edge("generate_job_requirements", "analyze_skill_gap")
-    graph.add_edge("analyze_skill_gap", "generate_pdf")
-    graph.add_edge("generate_pdf", END)
-    
-    return graph.compile()
-
-# Main Execution Block
-if __name__ == "__main__":
-    job_title = input("Enter job title: ")
-    cv_path = input("Enter path to CV file: ").strip('"') # Handle quotes
-
-    if not os.path.exists(cv_path):
-        print(f"❌ Error: File not found at {cv_path}")
-    else:
-        cv_text = ""
-        print(f"Reading file: {cv_path}...")
-
-        # 1. Try PDF Extraction
-        if cv_path.lower().endswith(".pdf"):
-            try:
-                from pypdf import PdfReader
-                reader = PdfReader(cv_path)
-                for page in reader.pages:
-                    extracted = page.extract_text()
-                    if extracted:
-                        cv_text += extracted + "\n"
-                print(f"✅ PDF loaded ({len(cv_text)} chars extracted).")
-            except ImportError:
-                print("❌ Error: pypdf is not installed. Run 'pip install pypdf'")
-                exit()
-            except Exception as e:
-                print(f"❌ Failed to read PDF: {e}")
-                exit()
-
-        # 2. Fallback to Text Reading
-        else:
-            try:
-                with open(cv_path, "r", encoding="utf-8") as f:
-                    cv_text = f.read()
-            except UnicodeDecodeError:
-                print("⚠️  UTF-8 decode failed, trying Latin-1...")
-                with open(cv_path, "r", encoding="latin-1") as f:
-                    cv_text = f.read()
-
-        if not cv_text.strip():
-            print("❌ Error: Could not extract any text from the file.")
-        else:
-            workflow = build_gap_analysis_graph()
-            initial_input = {
-                "job_title": job_title,
-                "cv_text": cv_text
-            }
-            
-            try:
-                final_state = workflow.invoke(initial_input)
-                print("-" * 30)
-                print("✅ SUCCESS: Skill Report Generated!")
-                print("📄 PDF saved at:", final_state["pdf_path"])
-            except Exception as e:
-                print(f"❌ An error occurred: {e}")
+    print("✅ PDF Generation complete.")
+    return {"pdf_path": pdf_path}

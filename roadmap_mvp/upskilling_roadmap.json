@@ -1,0 +1,82 @@
+{
+    "roadmap_title": "Comprehensive Skill Development for Future Tech Roles: Deep Learning, Blockchain, and SEO",
+    "modules": [
+        {
+            "skill": "Deep Learning",
+            "week": 1,
+            "topic": "Introduction to AI, Machine Learning, and Python for Deep Learning Foundations",
+            "recommended_action": "Begin with the fundamentals of programming (Python), data science libraries (NumPy, Pandas), and an overview of AI/ML concepts to build a strong base for deep learning.",
+            "resources": [
+                "https://www.coursera.org/search?query=Deep Learning",
+                "https://www.udemy.com/courses/search/?q=Deep Learning",
+                "https://www.edx.org/search?q=Deep Learning"
+            ]
+        },
+        {
+            "skill": "Deep Learning",
+            "week": 2,
+            "topic": "Core Concepts of Neural Networks: Perceptrons, Activation Functions, and Backpropagation",
+            "recommended_action": "Dive into the mechanics of neural networks, understanding how they learn through forward and backward propagation. Explore different types of activation functions and their use cases.",
+            "resources": [
+                "https://www.coursera.org/search?query=Deep Learning",
+                "https://www.udemy.com/courses/search/?q=Deep Learning",
+                "https://www.edx.org/search?q=Deep Learning"
+            ]
+        },
+        {
+            "skill": "Deep Learning",
+            "week": 3,
+            "topic": "Advanced Deep Learning Architectures and Frameworks (CNNs, RNNs, TensorFlow/PyTorch)",
+            "recommended_action": "Learn about specialized deep learning architectures like Convolutional Neural Networks (CNNs) for image processing and Recurrent Neural Networks (RNNs) for sequential data. Get hands-on with a framework like TensorFlow or PyTorch.",
+            "resources": [
+                "https://www.coursera.org/search?query=Deep Learning",
+                "https://www.udemy.com/courses/search/?q=Deep Learning",
+                "https://www.edx.org/search?q=Deep Learning"
+            ]
+        },
+        {
+            "skill": "Blockchain",
+            "week": 4,
+            "topic": "Blockchain Fundamentals: Cryptography, Distributed Ledgers, and Consensus Mechanisms",
+            "recommended_action": "Understand the core principles of blockchain technology, including cryptographic hashing, public-key cryptography, the concept of distributed ledger technology (DLT), and various consensus algorithms.",
+            "resources": [
+                "https://www.coursera.org/search?query=Blockchain",
+                "https://www.udemy.com/courses/search/?q=Blockchain",
+                "https://www.edx.org/search?q=Blockchain"
+            ]
+        },
+        {
+            "skill": "Blockchain",
+            "week": 5,
+            "topic": "Blockchain Applications: Cryptocurrencies, Smart Contracts, and Decentralized Applications (DApps)",
+            "recommended_action": "Explore the practical applications of blockchain, focusing on how cryptocurrencies work, the development and execution of smart contracts (e.g., on Ethereum), and the ecosystem of decentralized applications.",
+            "resources": [
+                "https://www.coursera.org/search?query=Blockchain",
+                "https://www.udemy.com/courses/search/?q=Blockchain",
+                "https://www.edx.org/search?q=Blockchain"
+            ]
+        },
+        {
+            "skill": "SEO",
+            "week": 6,
+            "topic": "SEO Essentials: Search Engine Basics, Keyword Research, and On-Page Optimization",
+            "recommended_action": "Begin with the fundamentals of how search engines work. Learn to conduct effective keyword research to identify target audiences and optimize website content and HTML elements for better search engine visibility.",
+            "resources": [
+                "https://www.coursera.org/search?query=SEO",
+                "https://www.udemy.com/courses/search/?q=SEO",
+                "https://www.edx.org/search?q=SEO"
+            ]
+        },
+        {
+            "skill": "SEO",
+            "week": 7,
+            "topic": "Advanced SEO Strategies: Off-Page SEO, Technical SEO, and Performance Monitoring",
+            "recommended_action": "Delve into off-page SEO techniques like link building and content promotion. Understand technical SEO aspects such as site structure, crawlability, and mobile optimization. Learn to use tools for monitoring and analyzing SEO performance.",
+            "resources": [
+                "https://www.coursera.org/search?query=SEO",
+                "https://www.udemy.com/courses/search/?q=SEO",
+                "https://www.edx.org/search?q=SEO"
+            ]
+        }
+    ]
+}
